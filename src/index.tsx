@@ -1,12 +1,18 @@
 import * as React from "react";
 import {createRoot} from "react-dom/client";
 import {Capacitor, CapacitorCookies, CapacitorHttp} from "@capacitor/core";
+import git from "isomorphic-git";
+import http from "isomorphic-git/http/web";
+import LightningFS from "@isomorphic-git/lightning-fs";
+import {Buffer} from "buffer";
 
 declare global {
     interface Window {
         cordova?: unknown;
     }
 }
+
+(globalThis as typeof globalThis & {Buffer: typeof Buffer}).Buffer = Buffer;
 
 const BASE_URL =
     Capacitor.getPlatform() == "android"
@@ -195,6 +201,55 @@ const readBlob = async () => {
 };
 readBlob.issue = "6126";
 
+const blobRequestBody = async () => {
+    const body = new Blob(["floccus blob body"], {type: "application/octet-stream"});
+    const response = await fetch(apiUrl("/api/binary/"), {
+        method: "POST",
+        body,
+    });
+    const data = await response.json();
+    if (data.length != 17 || data.text != "floccus blob body") {
+        throw new Error(`Expected Blob body round trip, got ${JSON.stringify(data)}`);
+    }
+
+    return true;
+};
+
+const gitClone = async () => {
+    const fs = new LightningFS(`floccus-${makeRandomString()}`);
+    const dir = `/repo-${makeRandomString()}`;
+
+    await fs.promises.mkdir(dir);
+    await git.clone({
+        fs,
+        http,
+        dir,
+        url: apiUrl("/git/floccus-repro.git"),
+        singleBranch: true,
+        depth: 1,
+    });
+
+    const readme = await fs.promises.readFile(`${dir}/README.md`, {encoding: "utf8"});
+    return readme == "floccus git repro\n";
+};
+
+const withTimeout = async (test: TestCase, timeoutMs = 15000) => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+        return await Promise.race([
+            test(),
+            new Promise<boolean>((_, reject) => {
+                timeoutId = setTimeout(() => {
+                    reject(new Error(`Timed out after ${timeoutMs}ms`));
+                }, timeoutMs);
+            }),
+        ]);
+    } finally {
+        clearTimeout(timeoutId);
+    }
+};
+
 const badRequest = async () => {
     const response = await CapacitorHttp.get({url: apiUrl("/api/400/")});
     const {thisField} = response.data;
@@ -220,8 +275,7 @@ const Test = (props: {name: string; test: TestCase}) => {
     const [error, setError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
-        props
-            .test()
+        withTimeout(props.test)
             .then((passed) => {
                 setPassed(passed);
             })
@@ -291,6 +345,8 @@ root.render(
                 readCookieSetOnClient,
                 deleteServerSetCookie,
                 readBlob,
+                blobRequestBody,
+                gitClone,
                 badRequest,
                 networkError,
             }}

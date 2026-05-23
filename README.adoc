@@ -34,6 +34,24 @@ npx cap open ios
 Android uses `http://10.0.2.2:3000` to reach the host server from the emulator.
 iOS and web use `http://localhost:3000`.
 
+== Android Blob Request Body Issue
+
+On Capacitor `8.3.4`, Android's patched `fetch` does not preserve `Blob`
+request bodies. The browser sends `floccus blob body`; Android sends `{}`:
+
+[source,json]
+----
+{
+  "contentType": "application/octet-stream",
+  "length": 2,
+  "text": "{}"
+}
+----
+
+This is the floccus-shaped failure: Git HTTP clients such as `isomorphic-git`
+need binary request bodies for Git smart HTTP. The test passes on web and fails
+on Android, so the issue is in Capacitor Android's patched `fetch` transport.
+
 == Environment
 
 * Capacitor: `8.3.4`
