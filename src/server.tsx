@@ -5,6 +5,19 @@ import multer from "multer";
 
 const app = express();
 const upload = multer();
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", req.header("Origin") ?? "*");
+    res.header("Vary", "Origin");
+    res.header("Access-Control-Allow-Headers", "Content-Type, X-Some-Header");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+
+    if (req.method == "OPTIONS") {
+        res.sendStatus(204);
+        return;
+    }
+
+    next();
+});
 app.use(cookieParser());
 app.use(express.urlencoded({extended: true}));
 

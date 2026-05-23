@@ -1,6 +1,6 @@
 import * as React from "react";
 import {createRoot} from "react-dom/client";
-import {Capacitor} from "@capacitor/core";
+import {Capacitor, CapacitorCookies, CapacitorHttp} from "@capacitor/core";
 
 declare global {
     interface Window {
@@ -17,61 +17,98 @@ const root = createRoot(document.getElementById("root")!);
 
 const makeRandomString = () => (Math.random() + 1).toString(36).substring(2);
 
-const setCookie = (name: string, value: string) => {
-    document.cookie = `${name}=${value}; path=/`;
+const apiUrl = (path: string) => `${BASE_URL}${path}`;
+const isNative = Capacitor.isNativePlatform();
+
+const getCookie = async (name: string) => {
+    if (!isNative) {
+        return document.cookie
+            .split("; ")
+            .find((cookie) => cookie.startsWith(`${name}=`))
+            ?.split("=")[1];
+    }
+
+    const cookies = await CapacitorCookies.getCookies({url: BASE_URL});
+    return cookies[name];
+};
+
+const setCookie = async (name: string, value: string) => {
+    if (!isNative) {
+        document.cookie = `${name}=${value}; path=/`;
+        return;
+    }
+
+    await CapacitorCookies.setCookie({
+        url: BASE_URL,
+        key: name,
+        value,
+        path: "/",
+    });
+};
+
+const deleteCookie = async (name: string) => {
+    if (!isNative) {
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`;
+        return;
+    }
+
+    await CapacitorCookies.deleteCookie({url: BASE_URL, key: name});
 };
 
 const simple = async () => {
-    const response = await fetch(`${BASE_URL}/api/simple/`);
-    return JSON.stringify(await response.json()) == '{"thisThing":"Works"}';
+    const response = await CapacitorHttp.get({url: apiUrl("/api/simple/")});
+    return JSON.stringify(response.data) == '{"thisThing":"Works"}';
 };
 
 const requestObject = async () => {
-    const request = new Request(`${BASE_URL}/api/simple/`);
-    const response = await fetch(request);
-    return JSON.stringify(await response.json()) == '{"thisThing":"Works"}';
+    const response = await CapacitorHttp.request({
+        url: apiUrl("/api/simple/"),
+        method: "GET",
+    });
+    return JSON.stringify(response.data) == '{"thisThing":"Works"}';
 };
 requestObject.issue = "6174";
 
 const serializingHeaders = async () => {
-    const response = await fetch(`${BASE_URL}/api/headers/`, {
-        headers: new Headers({"X-Some-Header": "Working"}),
+    const response = await CapacitorHttp.get({
+        url: apiUrl("/api/headers/"),
+        headers: {"X-Some-Header": "Working"},
     });
-    const {header} = await response.json();
+    const {header} = response.data;
     return header == "Working";
 };
 serializingHeaders.issue = "5945";
 
 const responseHeaders = async () => {
-    const response = await fetch(`${BASE_URL}/api/simple/`);
-    return response.headers instanceof Headers;
+    const response = await CapacitorHttp.get({url: apiUrl("/api/simple/")});
+    return response.headers != null && typeof response.headers == "object";
 };
 
 const cookie = async () => {
     const name = makeRandomString();
     const value = makeRandomString();
-    const response = await fetch(`${BASE_URL}/api/cookie/${name}/${value}/`);
-    return document.cookie.includes(value);
+    await CapacitorHttp.get({url: apiUrl(`/api/cookie/${name}/${value}/`)});
+    return (await getCookie(name)) == value;
 };
 
 const urlEncoded = async () => {
     const payload = {some: "value"};
-    const response = await fetch(`${BASE_URL}/api/body/`, {
-        method: "POST",
+    const response = await CapacitorHttp.post({
+        url: apiUrl("/api/body/"),
+        data: new URLSearchParams(payload).toString(),
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams(payload),
     });
 
-    return JSON.stringify(await response.json()) == '{"some":"value"}';
+    return JSON.stringify(response.data) == '{"some":"value"}';
 };
 urlEncoded.issue = "6165";
 
 const multipartEncoded = async () => {
     const body = new FormData();
     body.append("doesthiswork", "itdoes");
-    const response = await fetch(`${BASE_URL}/api/multipart/`, {
+    const response = await fetch(apiUrl("/api/multipart/"), {
         method: "POST",
         body,
     });
@@ -82,52 +119,57 @@ const multipartEncoded = async () => {
 multipartEncoded.issue = "6142";
 
 const readText = async () => {
-    const response = await fetch(`${BASE_URL}/api/text/`);
+    const response = await CapacitorHttp.get({
+        url: apiUrl("/api/text/"),
+        responseType: "text",
+    });
+
     return (
-        (await response.text()) ==
-        '"I am text, content type should not take precendece over calling response.text()"'
+        response.data ==
+        "I am text, content type should not take precendece over calling response.text()"
     );
 };
 readText.issue = "6184";
 
 const numberResponse = async () => {
-    const response = await fetch(`${BASE_URL}/api/number/`);
-    return (await response.json()) == 5;
+    const response = await CapacitorHttp.get({url: apiUrl("/api/number/")});
+    return response.data == 5;
 };
 numberResponse.issue = "6170";
 
 const stringResponse = async () => {
-    const response = await fetch(`${BASE_URL}/api/string/`);
-    return (await response.json()) == "a string";
+    const response = await CapacitorHttp.get({url: apiUrl("/api/string/")});
+    return response.data == "a string";
 };
 stringResponse.issue = "6170";
 
 const nullResponse = async () => {
-    const response = await fetch(`${BASE_URL}/api/null/`);
-    return (await response.json()) == null;
+    const response = await CapacitorHttp.get({url: apiUrl("/api/null/")});
+    return response.data == null;
 };
 nullResponse.issue = "6170";
 
 const trueResponse = async () => {
-    const response = await fetch(`${BASE_URL}/api/true/`);
-    return (await response.json()) == true;
+    const response = await CapacitorHttp.get({url: apiUrl("/api/true/")});
+    return response.data == true;
 };
 trueResponse.issue = "6170";
 
 const falseResponse = async () => {
-    const response = await fetch(`${BASE_URL}/api/false/`);
-    return (await response.json()) == false;
+    const response = await CapacitorHttp.get({url: apiUrl("/api/false/")});
+    return response.data == false;
 };
 falseResponse.issue = "6170";
 
 const readCookieSetOnClient = async () => {
     const cookieName = makeRandomString();
     const cookieValue = makeRandomString();
-    setCookie(cookieName, cookieValue);
+    await setCookie(cookieName, cookieValue);
 
-    const response = await fetch(`${BASE_URL}/api/read-cookie/${cookieName}`);
-    const data = await response.json();
-    const {value} = data;
+    const response = await CapacitorHttp.get({
+        url: apiUrl(`/api/read-cookie/${cookieName}`),
+    });
+    const {value} = response.data;
     return value == cookieValue;
 };
 readCookieSetOnClient.issue = "6196";
@@ -136,30 +178,32 @@ const deleteServerSetCookie = async () => {
     const cookieName = makeRandomString();
     const cookieValue = makeRandomString();
 
-    await fetch(`${BASE_URL}/api/cookie/${cookieName}/${cookieValue}`);
-    document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
-    const response = await fetch(`${BASE_URL}/api/read-cookie/${cookieName}`);
-    const {value} = await response.json();
+    await CapacitorHttp.get({url: apiUrl(`/api/cookie/${cookieName}/${cookieValue}`)});
+    await deleteCookie(cookieName);
+    const response = await CapacitorHttp.get({
+        url: apiUrl(`/api/read-cookie/${cookieName}`),
+    });
+    const {value} = response.data;
     return value == null;
 };
-readCookieSetOnClient.issue = "6197";
+deleteServerSetCookie.issue = "6197";
 
 const readBlob = async () => {
-    const response = await fetch(`${BASE_URL}/api/blob/`);
+    const response = await fetch(apiUrl("/api/blob/"));
     const {size} = await response.blob();
     return size == 33788;
 };
 readBlob.issue = "6126";
 
 const badRequest = async () => {
-    const response = await fetch(`${BASE_URL}/api/400/`);
-    const {thisField} = await response.json();
+    const response = await CapacitorHttp.get({url: apiUrl("/api/400/")});
+    const {thisField} = response.data;
     return response.status == 400 && thisField == "is required";
 };
 
 const networkError = async () => {
     try {
-        const response = await fetch("https://nowaythisworks");
+        await CapacitorHttp.get({url: "https://nowaythisworks"});
         return false;
     } catch (error: unknown) {
         return true;
@@ -172,7 +216,8 @@ interface TestCase {
 }
 
 const Test = (props: {name: string; test: TestCase}) => {
-    const [passed, setPassed] = React.useState(false);
+    const [passed, setPassed] = React.useState<boolean | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         props
@@ -180,7 +225,10 @@ const Test = (props: {name: string; test: TestCase}) => {
             .then((passed) => {
                 setPassed(passed);
             })
-            .catch(() => setPassed(false));
+            .catch((error: unknown) => {
+                setError(error instanceof Error ? error.message : String(error));
+                setPassed(false);
+            });
     }, []);
 
     return (
@@ -195,11 +243,19 @@ const Test = (props: {name: string; test: TestCase}) => {
                     </a>
                 )}
             </h3>
+            {passed == null && (
+                <h5 style={{marginTop: 0, marginBottom: 0, color: "gray"}}>Running</h5>
+            )}
             {passed == true && (
                 <h5 style={{marginTop: 0, marginBottom: 0, color: "green"}}>Passed</h5>
             )}
             {passed == false && (
                 <h5 style={{marginTop: 0, marginBottom: 0, color: "red"}}>Failed</h5>
+            )}
+            {error != null && (
+                <pre style={{marginTop: 0, color: "crimson", whiteSpace: "pre-wrap"}}>
+                    {error}
+                </pre>
             )}
         </div>
     );

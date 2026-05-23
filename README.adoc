@@ -5,19 +5,19 @@ Each test case renders in the app, and linked issue numbers point to the origina
 
 == Quick Start
 
-Install dependencies, sync Capacitor, and start the local server:
+Install dependencies, build the app, sync Capacitor, and start the local server:
 
 [source,sh]
 ----
 npm install
-npx cap sync
 npm run build
+npx cap sync
 node server.js
 ----
 
 Open `http://localhost:3000` to confirm the browser baseline.
 
-To run Android, start an emulator or connect a device, then run:
+With the server still running, start an emulator or connect a device, then run:
 
 [source,sh]
 ----
