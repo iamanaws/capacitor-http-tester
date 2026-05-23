@@ -3,6 +3,26 @@
 Minimal reproduction for Capacitor's patched `fetch`/HTTP and cookie behavior.
 Each test case renders in the app, and linked issue numbers point to the original Capacitor issues being exercised.
 
+== Local Capacitor Build
+
+This branch tests a patched Capacitor checkout with binary request body support.
+It expects the Capacitor repo to live next to this repo at `../capacitor`.
+
+[source,sh]
+----
+git clone https://github.com/iamanaws/capacitor ../capacitor
+cd ../capacitor
+git checkout fix/http-binary-request-bodies
+npm install
+npm --workspace @capacitor/core run build
+npm --workspace @capacitor/cli run build
+npm run build:nativebridge
+----
+
+Then return to this repo and install dependencies. The `@capacitor/core`,
+`@capacitor/cli`, `@capacitor/android`, and `@capacitor/ios` dependencies are
+linked from the sibling Capacitor checkout.
+
 == Quick Start
 
 Install dependencies, build the app, sync Capacitor, and start the local server:

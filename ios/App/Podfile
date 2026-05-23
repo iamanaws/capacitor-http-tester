@@ -1,11 +1,11 @@
-require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
+require_relative '../../../capacitor/ios/scripts/pods_helpers'
 
 platform :ios, '15.0'
 use_frameworks!
 
 def capacitor_pods
-  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
-  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+  pod 'Capacitor', :path => '../../../capacitor/ios'
+  pod 'CapacitorCordova', :path => '../../../capacitor/ios'
 
 end
 
