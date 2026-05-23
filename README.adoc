@@ -1,0 +1,76 @@
+= Capacitor HTTP Tester
+
+Minimal reproduction for Capacitor's patched `fetch`/HTTP and cookie behavior.
+Each test case renders in the app, and linked issue numbers point to the original Capacitor issues being exercised.
+
+== Quick Start
+
+Install dependencies, sync Capacitor, and start the local server:
+
+[source,sh]
+----
+npm install
+npx cap sync
+npm run build
+node server.js
+----
+
+Open `http://localhost:3000` to confirm the browser baseline.
+
+To run Android, start an emulator or connect a device, then run:
+
+[source,sh]
+----
+npx cap run android
+----
+
+To run iOS on macOS:
+
+[source,sh]
+----
+npx cap open ios
+----
+
+Android uses `http://10.0.2.2:3000` to reach the host server from the emulator.
+iOS and web use `http://localhost:3000`.
+
+== Environment
+
+* Capacitor: `8.3.4`
+* Node.js: `22+`
+* Android: SDK API `36`, min SDK `24`, target SDK `36`
+* Android Gradle Plugin: `8.13.0`
+* Gradle: `8.14.3`
+* Java: `21`
+* iOS: deployment target `15.0`
+* Xcode: `26.0+`
+
+== Optional Nix Shell
+
+For a pinned Node/JDK/Android SDK toolchain, enter the flake shell:
+
+[source,sh]
+----
+nix develop
+----
+
+The shell includes Node 22, npm, Corepack, TypeScript tooling, JDK 21, Android SDK command-line tools, and emulator system images.
+
+Create an emulator once:
+
+[source,sh]
+----
+avdmanager create avd \
+  --name capacitor-api36 \
+  --package "system-images;android-36;google_apis;x86_64" \
+  --device pixel_6
+----
+
+Start it with:
+
+[source,sh]
+----
+emulator -avd capacitor-api36
+----
+
+Note: this repro intentionally uses plaintext local HTTP, so HTTPS and certificate behavior are not covered.
